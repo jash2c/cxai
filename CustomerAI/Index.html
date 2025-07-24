@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Own Conversational AI (Voice Only)</title>
+    <!-- Tailwind CSS CDN for easy styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column; /* Changed to column for vertical centering */
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .voice-interaction-container {
+            width: 100%;
+            max-width: 400px; /* Smaller container for voice-only focus */
+            background-color: #ffffff;
+            border-radius: 1rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            gap: 1.5rem; /* Space between elements */
+        }
+        .header-text {
+            color: #334155; /* slate-700 */
+            font-weight: 600; /* font-semibold */
+            font-size: 1.5rem; /* text-2xl */
+            text-align: center;
+        }
+        .mic-button-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 120px; /* Larger touch target */
+            height: 120px; /* Larger touch target */
+            border-radius: 50%;
+            background-color: #6366f1; /* indigo-500 */
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .mic-button-area:hover {
+            background-color: #4f46e5; /* indigo-600 */
+            transform: translateY(-2px);
+        }
+        .mic-button-area:disabled {
+            background-color: #94a3b8; /* slate-400 */
+            cursor: not-allowed;
+        }
+        .mic-icon {
+            width: 4.5rem; /* Larger icon */
+            height: 4.5rem; /* Larger icon */
+        }
+        .loading-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.5rem;
+            color: #64748b; /* slate-500 */
+            font-style: italic;
+            font-size: 1rem;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            width: 28px; /* Slightly larger spinner */
+            height: 28px; /* Slightly larger spinner */
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status-text {
+            color: #64748b; /* slate-500 */
+            font-size: 1rem;
+            text-align: center;
+            min-height: 1.5rem; /* Reserve space to prevent layout shift */
+        }
+    </style>
+</head>
+<body>
+    <div class="voice-interaction-container">
+        <div class="header-text">Talk to Your Customer AI</div>
+
+        <button id="micButton" class="mic-button-area">
+            <svg id="micIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="mic-icon">
+                <path d="M8.25 4.5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 .75.75v.75c0 1.62-.084 3.2-.284 4.747a.75.75 0 0 1-.721.651A9.767 9.767 0 0 1 12 10.5c-1.574 0-3.116-.205-4.515-.604a.75.75 0 0 1-.721-.651V4.5ZM12 12a.75.75 0 0 1 .75.75v3c0 .414-.336.75-.75.75s-.75-.336-.75-.75v-3c0-.414.336-.75.75-.75Z" />
+                <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 17.25a.75.75 0 0 0-1.5 0v.207c-2.88-.705-5-3.53-5-6.707v-3c0-.414.336-.75.75-.75s.75-.336-.75-.75V8.5c0 .096.026.189.074.274.047.085.111.16.19.224.213.175.47.294.75.356v.296c0 .414.336.75.75.75s.75-.336.75-.75v-.296c.28-.062.537-.18.75-.356a.75.75 0 0 0 .19-.224.75.75 0 0 0 .074-.274V8.5c0-.414.336-.75.75-.75s.75.336.75.75v.207c.28.062.537.18.75.356a.75.75 0 0 0 .19.224.75.75 0 0 0 .074-.274V8.5c0-.414.336-.75.75-.75s.75.336.75.75v.207c2.88.705 5 3.53 5 6.707v3a.75.75 0 0 0-1.5 0v-.207Z" clip-rule="evenodd" />
+            </svg>
+        </button>
+
+        <div id="loadingIndicator" class="loading-indicator hidden">
+            <div class="loading-spinner"></div>
+            Customer is thinking...
+        </div>
+        <div id="statusText" class="status-text">Click the mic to start!</div>
+    </div>
+
+    <script>
+        const micButton = document.getElementById('micButton');
+        const micIcon = document.getElementById('micIcon');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const statusText = document.getElementById('statusText');
+
+        let isListening = false;
+        let recognition; // SpeechRecognition object
+        let synth = window.speechSynthesis; // SpeechSynthesis object
+        let chatHistory = []; // To store conversation for context
+
+        // Initial customer problem statement
+        const initialCustomerProblem = "Hello, I seem to have a problem with my front door lock. It's completely jammed and I can't get in.";
+
+        // System instruction for the AI to act as a customer
+        const systemInstruction = {
+            role: "user",
+            parts: [{ text: "You are an AI acting as a customer calling a service provider for a household repair or replacement. You should state your problem clearly at the beginning. When asked for more details (like address, urgency, type of service, contact info, availability), provide plausible, concise, and realistic information. Do not offer solutions or act as the service provider. Keep your responses focused on the customer's perspective and the problem at hand." }]
+        };
+
+        // Initialize chat history with the system instruction and the initial customer problem
+        chatHistory.push(systemInstruction);
+        // The initial customer problem will be spoken on window.onload
+
+        // Initialize SpeechRecognition (browser-native STT)
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = false; // Listen for a single utterance
+            recognition.interimResults = false; // Only return final results
+            recognition.lang = 'en-US'; // Set language
+
+            recognition.onstart = () => {
+                isListening = true;
+                micIcon.classList.add('text-red-500'); // Change icon color to red
+                micButton.classList.add('bg-red-500'); // Add red background
+                micButton.classList.remove('bg-indigo-500');
+                statusText.textContent = "Listening...";
+                micButton.disabled = true; // Disable mic during listening to prevent re-trigger
+                console.log("Speech recognition started.");
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                console.log("You said:", transcript);
+                statusText.textContent = `You said: "${transcript}"`;
+                // Automatically send message after recognition
+                sendMessage(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                statusText.textContent = "Error listening. Click mic to try again.";
+                micButton.disabled = false;
+                micIcon.classList.remove('text-red-500');
+                micButton.classList.remove('bg-red-500');
+                micButton.classList.add('bg-indigo-500');
+                isListening = false;
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                micIcon.classList.remove('text-red-500'); // Reset icon color
+                micButton.classList.remove('bg-red-500');
+                micButton.classList.add('bg-indigo-500');
+                micButton.disabled = false; // Re-enable mic button
+                console.log("Speech recognition ended.");
+            };
+        } else {
+            micButton.disabled = true;
+            micButton.title = "Speech Recognition not supported in this browser.";
+            statusText.textContent = "Speech input not supported.";
+            console.warn("Web Speech API (SpeechRecognition) not supported in this browser.");
+        }
+
+        // Function to speak text using browser's SpeechSynthesis
+        function speakText(text) {
+            if (synth.speaking) {
+                synth.cancel(); // Stop any ongoing speech
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US'; // Set language
+            utterance.rate = 1.0; // Speed (0.1 to 10)
+            utterance.pitch = 1.0; // Pitch (0 to 2)
+
+            utterance.onstart = () => {
+                statusText.textContent = "Customer AI is speaking...";
+            };
+            utterance.onend = () => {
+                statusText.textContent = "Click the mic to respond.";
+                micButton.disabled = false; // Re-enable mic after AI finishes speaking
+            };
+            utterance.onerror = (event) => {
+                console.error('Speech synthesis error:', event);
+                statusText.textContent = "Error speaking. Click the mic to respond.";
+                micButton.disabled = false;
+            };
+
+            synth.speak(utterance);
+        }
+
+        // Function to send message to Gemini API
+        async function sendMessage(text) {
+            if (!text.trim()) {
+                statusText.textContent = "Please say something.";
+                micButton.disabled = false;
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden');
+            micButton.disabled = true; // Disable mic during AI processing
+
+            try {
+                // Add user message to chat history for context
+                chatHistory.push({ role: "user", parts: [{ text: text }] });
+
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will automatically provide the API key at runtime
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const aiResponseText = result.candidates[0].content.parts[0].text;
+                    console.log("Customer AI says:", aiResponseText);
+                    speakText(aiResponseText);
+                    // Add AI response to chat history
+                    chatHistory.push({ role: "model", parts: [{ text: aiResponseText }] });
+                } else {
+                    console.error("AI response structure unexpected or empty.");
+                    speakText("Sorry, I couldn't get a response from the customer. Please try asking again.");
+                }
+
+            } catch (error) {
+                console.error("Error communicating with Gemini API:", error);
+                speakText("An error occurred while connecting to the customer AI. Please check your internet connection and try again.");
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                // Mic button re-enabled by speakText.onend or onerror
+            }
+        }
+
+        // Event Listener for mic button click
+        micButton.addEventListener('click', () => {
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        });
+
+        // Initial customer problem spoken by AI on window load
+        window.onload = () => {
+            speakText(initialCustomerProblem); // Speak initial problem
+            // Mic button will be enabled after this speech ends.
+        };
+
+    </script>
+</body>
+</html>
